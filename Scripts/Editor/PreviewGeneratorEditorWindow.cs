@@ -2,7 +2,6 @@
 using System.Reflection;
 using System.IO;
 using UnityEditor;
-using UnityEditor.SceneManagement;
 using UnityEngine;
 
 [HelpURL("https://github.com/klhurley/UnityPreviewGenerator/blob/master/README.md")]
@@ -18,7 +17,9 @@ public class PreviewGeneratorEditorWindow : EditorWindow
     private Editor _previewGeneratorEditor;
 
     private Vector2 curScrollPosition = new Vector2(0.0f, 0.0f);
-     
+    private const string _settingsPath = "/ProjectSettings/PreviewGeneratorSettings.json";
+
+
     [MenuItem("Window/Preview Generator")]
     static void ShowWindow()
     {
@@ -36,21 +37,22 @@ public class PreviewGeneratorEditorWindow : EditorWindow
         }
 
         _previewGenerator.Initialize();
-        //wantsMouseMove = true;
-        // Here we retrieve the data if it exists or we save the default field initializers we set above
-        string data = EditorPrefs.GetString("PreviewGeneratorWindow", JsonUtility.ToJson(this, false));
-        // Then we apply them to this window
-        JsonUtility.FromJsonOverwrite(data, this);
+
+        string path = Path.GetDirectoryName(Application.dataPath) + _settingsPath;
+        string settings = File.ReadAllText(path);
+        if (settings != null)
+        {
+            // Then we apply them to this window
+            JsonUtility.FromJsonOverwrite(settings, this);
+        }
 
     }
  
     protected void OnDisable ()
     {
         Debug.Log("In OnDisable saving window layout and settings");
-        // We get the Json data
-        string data = JsonUtility.ToJson(this, false);
-        // And we save it
-        EditorPrefs.SetString("PreviewGeneratorWindow", data);
+        string path = Path.GetDirectoryName(Application.dataPath) + _settingsPath;
+        File.WriteAllText(path, JsonUtility.ToJson(this, false));
     }
 
     void OnGUI()
@@ -281,7 +283,14 @@ public class AnimationClipInfoDrawer : PropertyDrawer
  
         SerializedProperty animClipProperty = property.FindPropertyRelative("AnimationClip");
         SerializedProperty positionProperty = property.FindPropertyRelative("PositionInClip");
-        AnimationClip animClip = (AnimationClip) animClipProperty.objectReferenceValue;
+        AnimationClip animClip = null;
+        if (animClipProperty.objectReferenceValue != null)
+        {
+            if (animClipProperty.objectReferenceValue.GetType() == typeof(AnimationClip))
+            {
+                animClip = (AnimationClip) animClipProperty.objectReferenceValue;
+            }
+        }
         float positionInClip = positionProperty.floatValue;
 
         EditorGUILayout.Space();        
