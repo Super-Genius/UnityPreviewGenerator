@@ -7,7 +7,7 @@ This is useful for many things including generating icons at runtime.
 
 ## Getting Started
 
-You can either clone this project from here or find it on the Unity Store for Free at https://XXX
+You can either clone this project from here or find it on the Unity Store for Free at https://assetstore.unity.com/packages/slug/138077
 
 Make sure you use --recurse-submodules to get the submodule ex:
 
