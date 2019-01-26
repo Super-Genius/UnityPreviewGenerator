@@ -1,0 +1,3 @@
+[submodule "UnityRuntimePreviewGenerator"]
+	path = UnityRuntimePreviewGenerator
+	url = https://github.com/klhurley/UnityRuntimePreviewGenerator.git
