@@ -1,7 +1,5 @@
 ﻿using System;
-using System.Reflection;
 using System.IO;
-using System.Security.Cryptography.X509Certificates;
 using UnityEditor;
 using UnityEngine;
 
@@ -114,7 +112,7 @@ public class PreviewGeneratorEditorWindow : EditorWindow
 // these are for the Preview Generator script
 [CustomEditor(typeof(PreviewGeneratorComponent))]
 public class PreviewGeneratorEditor : Editor
-{    
+{
     // this happens when clicked off component or OnDisable/OnEnable with prefab reverts
     void OnEnable()
     {
@@ -208,7 +206,6 @@ public class PreviewGeneratorDrawer : PropertyDrawer
 
             if ((previewGenerator != null) && (previewGenerator.GameObjectToRender != null))
             {
-                //previewGenerator.RenderPreviewTexture();
                 // allows high frame rate in inspector
                 previewGenerator.bRepaintNeeded = true;
             }
@@ -222,7 +219,6 @@ public class PreviewGeneratorDrawer : PropertyDrawer
         {
             if ((previewGenerator != null) && (previewGenerator.GameObjectToRender != null))
             {
-                //previewGenerator.RenderPreviewTexture();
                 previewGenerator.bRepaintNeeded = true;
             }
 
@@ -275,6 +271,7 @@ public class PreviewGeneratorDrawer : PropertyDrawer
         {
             previewGenerator.RenderPreviewTexture();
             previewGenerator.bRepaintNeeded = false;
+
         }
         
         Texture2D previewTexture = previewGenerator.PreviewTexture;

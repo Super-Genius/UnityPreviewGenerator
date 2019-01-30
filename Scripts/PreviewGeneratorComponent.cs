@@ -1,6 +1,4 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using System.Security.Cryptography.X509Certificates;
+﻿using System;
 using UnityEngine;
 
 [HelpURL("https://github.com/klhurley/UnityPreviewGenerator/wiki/Editor-Window-&-Preview-Component#PreviewComponent")]
@@ -8,10 +6,13 @@ using UnityEngine;
 public class PreviewGeneratorComponent : MonoBehaviour
 {
     public PreviewGenerator PreviewGenerator;
+    [NonSerialized]
+    public bool renderTextureChanged = false;
 
     void OnValidate()
     {
-        PreviewGenerator.bRepaintNeeded = true;        
+        PreviewGenerator.bRepaintNeeded = true;
+        renderTextureChanged = true;
     }
     
     void Start()
@@ -33,6 +34,7 @@ public class PreviewGeneratorComponent : MonoBehaviour
             if (doRender)
             {
                 PreviewGenerator.RenderPreviewTexture();
+                renderTextureChanged = false;
             }
 
             return PreviewGenerator.PreviewTexture;

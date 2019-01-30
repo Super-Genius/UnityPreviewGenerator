@@ -29,7 +29,7 @@ public class SpriteRenderTexture : MonoBehaviour
         if (_previewGeneratorComponent != null)
         {
             // only gets new renderTexture if object changes or texture changes
-            SetSprite(_curGameObject != _previewGeneratorComponent.PreviewGenerator.GameObjectToRender);
+            SetSprite((_curGameObject != _previewGeneratorComponent.PreviewGenerator.GameObjectToRender) || _previewGeneratorComponent.renderTextureChanged);
         }
     }
 
