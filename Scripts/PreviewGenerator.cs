@@ -50,7 +50,7 @@ public class PreviewGenerator
     private PostProcessMergeComponent _postProcessMergeComponent;
     private Material _combinerMaterial;
 
-    [HideInInspector]
+    [NonSerialized]
     public bool bRepaintNeeded = false;
     
     private GameObject _lastCameraObject;
@@ -259,7 +259,6 @@ public class PreviewGenerator
     
     public void RenderPreviewTexture()
     {
-            
 
         GameObject _internalCameraObject = null;
         Texture2D backgroundTexture = null;
@@ -305,13 +304,14 @@ public class PreviewGenerator
             {
                 AnimationClipInfo.AnimationClip.SampleAnimation(tempGameObject, AnimationClipInfo.PositionInClip);
             }
-
+            
             // set camera rotation/preview rotation
             RuntimePreviewGenerator.PreviewDirection = ViewDirection;
             RuntimePreviewGenerator.UpDirection = ViewUpDirection;
             RuntimePreviewGenerator.PanOffset = PanOffset;
             RuntimePreviewGenerator.ZoomLevel = ZoomLevel;
             Texture2D alphaTexture = null;
+
 
             Texture2D tempTexture =
                 RuntimePreviewGenerator.GenerateModelPreview(tempGameObject.transform, RenderWidth, RenderHeight);

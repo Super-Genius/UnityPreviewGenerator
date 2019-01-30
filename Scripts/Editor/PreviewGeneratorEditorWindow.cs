@@ -1,10 +1,11 @@
 ﻿using System;
 using System.Reflection;
 using System.IO;
+using System.Security.Cryptography.X509Certificates;
 using UnityEditor;
 using UnityEngine;
 
-[HelpURL("https://github.com/klhurley/UnityPreviewGenerator/blob/master/README.md")]
+[HelpURL("https://github.com/klhurley/UnityPreviewGenerator/wiki/Editor-Window-&-Preview-Component#EditorWindow")]
 [Serializable]
 public class PreviewGeneratorEditorWindow : EditorWindow
 {
@@ -19,18 +20,15 @@ public class PreviewGeneratorEditorWindow : EditorWindow
     private Vector2 curScrollPosition = new Vector2(0.0f, 0.0f);
     private const string _settingsPath = "/ProjectSettings/PreviewGeneratorSettings.json";
 
-
     [MenuItem("Window/Preview Generator")]
     static void ShowWindow()
     {
         window = GetWindow<PreviewGeneratorEditorWindow>();
         window.minSize = new Vector2(525.0f, 695.0f);
-        Debug.Log("In Show Window");
     }
     
     protected void OnEnable ()
     {
-        Debug.Log("In OnEnable loading window layout and settings");
         if (_previewGenerator == null)
         {
             _previewGenerator = new PreviewGenerator();
@@ -39,20 +37,24 @@ public class PreviewGeneratorEditorWindow : EditorWindow
         _previewGenerator.Initialize();
 
         string path = Path.GetDirectoryName(Application.dataPath) + _settingsPath;
-        string settings = File.ReadAllText(path);
-        if (settings != null)
+        if (File.Exists(path))
         {
-            // Then we apply them to this window
-            JsonUtility.FromJsonOverwrite(settings, this);
+            string settings = File.ReadAllText(path);
+            if (settings != null)
+            {
+                // Then we apply them to this window
+                EditorJsonUtility.FromJsonOverwrite(settings, _previewGenerator);
+            }
+
+            _previewGenerator.bRepaintNeeded = true;
         }
 
     }
  
     protected void OnDisable ()
     {
-        Debug.Log("In OnDisable saving window layout and settings");
         string path = Path.GetDirectoryName(Application.dataPath) + _settingsPath;
-        File.WriteAllText(path, JsonUtility.ToJson(this, false));
+        File.WriteAllText(path, EditorJsonUtility.ToJson(_previewGenerator, true));
     }
 
     void OnGUI()
@@ -61,8 +63,7 @@ public class PreviewGeneratorEditorWindow : EditorWindow
         {
             window = GetWindow<PreviewGeneratorEditorWindow>();
             window.minSize = new Vector2(525.0f, 695.0f);
-            Debug.Log("In OnGUI and Created new Window");
-            OnEnable();
+            //OnEnable();
         }
 
         bool oldWideMode = EditorGUIUtility.wideMode;
@@ -99,13 +100,12 @@ public class PreviewGeneratorEditorWindow : EditorWindow
         EditorGUIUtility.labelWidth = oldLabelWidth;
         EditorGUIUtility.wideMode = oldWideMode;
 
+        previewGenSO.ApplyModifiedProperties();
+                
         if (_previewGenerator.bRepaintNeeded)
         {
             Repaint();
-            _previewGenerator.bRepaintNeeded = false;
-
         }
-        previewGenSO.ApplyModifiedProperties();
 
     }
 
@@ -114,32 +114,34 @@ public class PreviewGeneratorEditorWindow : EditorWindow
 // these are for the Preview Generator script
 [CustomEditor(typeof(PreviewGeneratorComponent))]
 public class PreviewGeneratorEditor : Editor
-{
+{    
+    // this happens when clicked off component or OnDisable/OnEnable with prefab reverts
+    void OnEnable()
+    {
+        PreviewGenerator previewGenerator = ((PreviewGeneratorComponent)serializedObject.targetObject).PreviewGenerator;
+        previewGenerator.bRepaintNeeded = true;
+    }
+    
     public override void OnInspectorGUI()
     {
-        
-        SerializedProperty prop = serializedObject.FindProperty("PreviewGenerator");
+        serializedObject.Update();
+        base.OnInspectorGUI();
+        serializedObject.ApplyModifiedProperties();
 
-        if (prop != null)
+        PreviewGenerator previewGenerator = ((PreviewGeneratorComponent)serializedObject.targetObject).PreviewGenerator;
+        if (previewGenerator.bRepaintNeeded)
         {
-            serializedObject.Update();
-            EditorGUILayout.PropertyField(prop, true);
-            serializedObject.ApplyModifiedProperties();     
-            FieldInfo field = prop.serializedObject.targetObject.GetType().GetField(prop.propertyPath);
-            if (field != null)
-            {
-                PreviewGenerator previewGenerator =
-                    (PreviewGenerator) field.GetValue(prop.serializedObject.targetObject);
-                if (previewGenerator.bRepaintNeeded)
-                {
-                    Repaint();
-                    previewGenerator.bRepaintNeeded = false;
-                }
-            }
-
+            Repaint();
         }
-
     }
+ 
+    public override bool RequiresConstantRepaint()
+    {
+        PreviewGenerator previewGenerator = ((PreviewGeneratorComponent)serializedObject.targetObject).PreviewGenerator;
+        return previewGenerator.bRepaintNeeded;
+    }
+    
+    
 }
 
 [CustomPropertyDrawer(typeof(PreviewGenerator), true)]
@@ -150,7 +152,8 @@ public class PreviewGeneratorDrawer : PropertyDrawer
     private const float zoomSpeed = .01f; 
     private bool mouseOverTexture = false;
     private Rect texRect = new Rect(0.0f, 0.0f, 0.0f, 0.0f);
-    
+    private const int MinTextureSize = 1;
+    private const int MaxTextureSize = 4096;
     
     public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
     {
@@ -164,11 +167,13 @@ public class PreviewGeneratorDrawer : PropertyDrawer
         SerializedProperty ViewDirectionProperty = property.FindPropertyRelative("ViewDirection");
         SerializedProperty ViewRightProperty = property.FindPropertyRelative("ViewRightDirection");
         SerializedProperty ViewUpProperty = property.FindPropertyRelative("ViewUpDirection");
+        SerializedProperty RenderWidthProperty = property.FindPropertyRelative("RenderWidth");
+        SerializedProperty RenderHeightProperty = property.FindPropertyRelative("RenderHeight");
 
         mouseOverTexture = texRect.Contains(Event.current.mousePosition);
         if (mouseOverTexture && (Event.current.type == EventType.MouseDrag))
         {
-            
+
             // do pan if the control key is pressed
             if (Event.current.control)
             {
@@ -179,42 +184,52 @@ public class PreviewGeneratorDrawer : PropertyDrawer
             }
             else if (Event.current.shift)
             {
-                float newZoom = ZoomLevelProperty.floatValue - Event.current.delta.y * zoomSpeed;
+                float newZoom = previewGenerator.ZoomLevel - Event.current.delta.y * zoomSpeed;
                 
                 if (previewGenerator.OrthographicCamera)
                 {
                     newZoom = Mathf.Min(.999999f, newZoom);
                 }
 
-                ZoomLevelProperty.floatValue = newZoom;
+                ZoomLevelProperty.floatValue =  newZoom;
             }
             else
             {
+                Vector3 viewDirection = ViewDirectionProperty.vector3Value;
+                viewDirection += ViewRightProperty.vector3Value * (-Event.current.delta.x * rotSpeed * Mathf.Deg2Rad) +
+                                ViewUpProperty.vector3Value * (-Event.current.delta.y * rotSpeed * Mathf.Deg2Rad);
 
-                Vector3 newDirection = previewGenerator.ViewDirection.normalized;
-                newDirection += previewGenerator.ViewRightDirection.normalized * (Event.current.delta.x * rotSpeed * Mathf.Deg2Rad) +
-                                previewGenerator.ViewUpDirection.normalized * (-Event.current.delta.y * rotSpeed * Mathf.Deg2Rad);
-
-                newDirection.Normalize();
-                ViewRightProperty.vector3Value = Vector3.Cross(previewGenerator.ViewUpDirection.normalized, newDirection);
+                viewDirection.Normalize();
+                ViewRightProperty.vector3Value = Vector3.Cross(ViewUpProperty.vector3Value, viewDirection).normalized;
                 // and new up Vector
-                ViewUpProperty.vector3Value = Vector3.Cross(newDirection, ViewRightProperty.vector3Value);
-            
-                ViewDirectionProperty.vector3Value = newDirection;
-               
+                ViewUpProperty.vector3Value = Vector3.Cross(viewDirection, ViewRightProperty.vector3Value).normalized;
+                ViewDirectionProperty.vector3Value = viewDirection;
             }
 
-            previewGenerator.bRepaintNeeded = true;
-        }
-
-        if (previewGenerator != null)
-        {
-            if ((previewGenerator.GameObjectToRender != null) && (previewGenerator.RenderHeight > 0) && (previewGenerator.RenderWidth > 0))
+            if ((previewGenerator != null) && (previewGenerator.GameObjectToRender != null))
             {
-                previewGenerator.RenderPreviewTexture();
+                //previewGenerator.RenderPreviewTexture();
+                // allows high frame rate in inspector
+                previewGenerator.bRepaintNeeded = true;
             }
-        }
 
+            return;
+
+        }
+             
+        if ((Event.current.type == EventType.ValidateCommand) &&
+            (Event.current.commandName == "UndoRedoPerformed"))
+        {
+            if ((previewGenerator != null) && (previewGenerator.GameObjectToRender != null))
+            {
+                //previewGenerator.RenderPreviewTexture();
+                previewGenerator.bRepaintNeeded = true;
+            }
+
+            return;
+        }
+        
+        // should we only do this during layout and paint events?
         EditorGUI.BeginChangeCheck();
         {
             if (property.hasVisibleChildren)
@@ -236,9 +251,32 @@ public class PreviewGeneratorDrawer : PropertyDrawer
             // and new up Vector
             ViewUpProperty.vector3Value =
                 Vector3.Cross(ViewDirectionProperty.vector3Value, ViewRightProperty.vector3Value.normalized);
- 
-        }
 
+            // This can happen when the user is editing the View Direction with keyboard.
+            if (ViewUpProperty.vector3Value == Vector3.zero)
+            {
+                ViewUpProperty.vector3Value = Vector3.up;
+            }
+
+            if (previewGenerator.OrthographicCamera)
+            {
+                ZoomLevelProperty.floatValue = Mathf.Min(.999999f, ZoomLevelProperty.floatValue);
+            }
+
+            RenderWidthProperty.intValue = Mathf.Min(Mathf.Max(RenderWidthProperty.intValue, MinTextureSize), MaxTextureSize);
+            RenderHeightProperty.intValue = Mathf.Min(Mathf.Max(RenderHeightProperty.intValue, MinTextureSize), MaxTextureSize);
+
+            previewGenerator.bRepaintNeeded = true;
+
+        }
+ 
+        if ((previewGenerator != null) && (previewGenerator.GameObjectToRender != null) && 
+            (Event.current.type == EventType.Repaint) && previewGenerator.bRepaintNeeded)
+        {
+            previewGenerator.RenderPreviewTexture();
+            previewGenerator.bRepaintNeeded = false;
+        }
+        
         Texture2D previewTexture = previewGenerator.PreviewTexture;
         
         EditorGUILayout.Space();
