@@ -1,6 +1,6 @@
-[submodule "UnityRuntimePreviewGenerator"]
-	path = UnityRuntimePreviewGenerator
-	url = https://github.com/klhurley/UnityRuntimePreviewGenerator.git
 [submodule "wiki"]
 	path = wiki
 	url = ./wiki
+[submodule "RuntimePreviewGenerator"]
+	path = RuntimePreviewGenerator
+	url = https://github.com/klhurley/UnityRuntimePreviewGenerator.git
