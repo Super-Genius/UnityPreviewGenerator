@@ -11,8 +11,11 @@ public class PreviewGeneratorComponent : MonoBehaviour
 
     void OnValidate()
     {
-        PreviewGenerator.bRepaintNeeded = true;
-        renderTextureChanged = true;
+        if (PreviewGenerator != null)
+        {
+            PreviewGenerator.bRepaintNeeded = true;
+            renderTextureChanged = true;
+        }
     }
     
     void Start()
